@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using KModkit;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
@@ -33,6 +34,7 @@ public class GeminiScript : MonoBehaviour
     private int[] _inputNums = new int[3];
     private bool _gonnaStrike;
     private bool _hasFocus;
+    private float _goTimeElapsed;
 
     private class GeminiInfo
     {
@@ -42,6 +44,9 @@ public class GeminiScript : MonoBehaviour
     private static readonly Dictionary<string, GeminiInfo> _infos = new Dictionary<string, GeminiInfo>();
     private GeminiInfo _info;
     private GeminiScript _partner;
+    private Coroutine _goTimer;
+    private bool _autosolved;
+    private bool _partnerAutosolved;
 
     private void Start()
     {
@@ -49,6 +54,7 @@ public class GeminiScript : MonoBehaviour
         for (int i = 0; i < ButtonSels.Length; i++)
             ButtonSels[i].OnInteract += ButtonPress(i);
         GoSel.OnInteract += GoPress;
+        GoSel.OnInteractEnded += GoRelease;
 
         GetComponent<KMSelectable>().OnFocus += delegate { _hasFocus = true; };
         GetComponent<KMSelectable>().OnDefocus += delegate { _hasFocus = false; };
@@ -143,29 +149,63 @@ public class GeminiScript : MonoBehaviour
     {
         Audio.PlayGameSoundAtTransform(KMSoundOverride.SoundEffect.ButtonPress, GoSel.transform);
         GoSel.AddInteractionPunch(0.5f);
-        if (_moduleSolved || _timerStarted || !_inputStarted)
+        if (_moduleSolved || _timerStarted)
             return false;
+        _goTimeElapsed = 0f;
+        _goTimer = StartCoroutine(GoTimer());
+        return false;
+    }
+
+    private void GoRelease()
+    {
+        if (_moduleSolved || _timerStarted)
+            return;
+        if (_goTimer != null)
+            StopCoroutine(_goTimer);
+        if (_goTimeElapsed > 1f)
+        {
+            _inputStarted = false;
+            _inputString = "---------";
+            return;
+        }
         for (int i = 0; i < ScreenTexts.Length; i++)
         {
-            if (!int.TryParse(ScreenTexts[i].text, out _inputNums[i]) || _inputNums[i] < 0)
+            if (!int.TryParse(ScreenTexts[i].text, out _inputNums[i]) || _inputNums[i] < 0 || _inputString == "---------")
             {
                 Module.HandleStrike();
                 Debug.LogFormat("[{0} #{1}] Attempted to start the timer before entering all digits. Strike.", ModuleName, _moduleId);
+                _inputString = "---------";
                 _inputStarted = false;
-                return false;
+                return;
             }
             _timerStarted = true;
         }
-        return false;
+        return;
+    }
+
+    private IEnumerator GoTimer()
+    {
+        while (true)
+        {
+            yield return null;
+            _goTimeElapsed += Time.deltaTime;
+        }
     }
 
     private IEnumerator CycleText()
     {
         while (!_moduleSolved)
         {
-            int time = (int) BombInfo.GetTime();
-            while (time == (int) BombInfo.GetTime())
+            int time = (int)BombInfo.GetTime();
+            while (time == (int)BombInfo.GetTime())
                 yield return null;
+
+            if (!_autosolved && !_partnerAutosolved && _partner._autosolved)
+            {
+                _partner = null;
+                _partnerAutosolved = true;
+                Debug.LogFormat("[{0} #{1}] This module's partner has been autosolved. Departnering...", ModuleName, _moduleId);
+            }
 
             if (!_inputStarted)
             {
@@ -213,7 +253,7 @@ public class GeminiScript : MonoBehaviour
                 Module.HandleStrike();
                 Debug.LogFormat("[{0} #{1}] The three numbers ({2}) are not equal at the end of the timer. Strike.", ModuleName, _moduleId, _inputNums.Join(", "));
             }
-            else if (_partner != null && _partner._moduleSolved)
+            else if (_partner != null && _partner._moduleSolved && !_partner._autosolved)
             {
                 Module.HandleStrike();
                 Debug.LogFormat("[{0} #{1}] This module’s partner solved prematurely. Strike.", ModuleName, _moduleId);
@@ -251,5 +291,77 @@ public class GeminiScript : MonoBehaviour
             for (int i = 0; i <= 9; i++)
                 if (Input.GetKeyDown(KeyCode.Alpha0 + i) || Input.GetKeyDown(KeyCode.Keypad0 + i))
                     ButtonSels[i].OnInteract();
+    }
+
+#pragma warning disable 414
+    private readonly string TwitchHelpMessage = "!{0} press 123456789 [Presses buttons 123456789. Must be of length 9.]\n!{0} press go at xx [Press the go button when the seconds digits of the timer are xx.]\n!{0} press go [Press the go button at any time.]\n!{0} reset [Hold the go button to reset the module.";
+#pragma warning restore 414
+
+    private IEnumerator ProcessTwitchCommand(string command)
+    {
+        var m = Regex.Match(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            yield return null;
+            GoSel.OnInteract();
+            yield return new WaitForSeconds(1.5f);
+            GoSel.OnInteractEnded();
+            yield break;
+        }
+        m = Regex.Match(command, @"^\s*press\s+go\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            yield return null;
+            GoSel.OnInteract();
+            yield return new WaitForSeconds(0.2f);
+            GoSel.OnInteractEnded();
+            yield return "strike";
+            yield return "solve";
+            yield break;
+        }
+        m = Regex.Match(command, @"^\s*press\s+go\s+at\s+(\d{2})\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            yield return null;
+            int t = int.Parse(m.Groups[1].Value);
+            while ((int)BombInfo.GetTime() % 60 != t)
+                yield return null;
+            GoSel.OnInteract();
+            yield return new WaitForSeconds(0.2f);
+            GoSel.OnInteractEnded();
+            yield return "strike";
+            yield return "solve";
+            yield break;
+        }
+        m = Regex.Match(command, @"^\s*press\s+(\d{9})\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            yield return null;
+            string p = m.Groups[1].Value;
+            for (int i = 0; i < p.Length; i++)
+            {
+                ButtonSels[p[i] - '0'].OnInteract();
+                yield return new WaitForSeconds(0.1f);
+            }
+            yield break;
+        }
+    }
+
+    private IEnumerator TwitchHandleForcedSolve()
+    {
+        Debug.LogFormat("[{0} #{1}] Autosolving module. Departnering...", ModuleName, _moduleId);
+        _autosolved = true;
+        _partner = null;
+        var inp = _functionOffsets.Select(i => (ModuleName == "Pollux" ? i * _timer % 1000 : (1000 - i) * _timer % 1000).ToString("000")).Join("");
+        for (int i = 0; i < inp.Length; i++)
+        {
+            ButtonSels[inp[i] - '0'].OnInteract();
+            yield return new WaitForSeconds(0.1f);
+        }
+        GoSel.OnInteract();
+        yield return new WaitForSeconds(0.2f);
+        GoSel.OnInteractEnded();
+        while (!_moduleSolved)
+            yield return true;
     }
 }
