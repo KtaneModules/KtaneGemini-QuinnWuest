@@ -225,8 +225,15 @@ public class GeminiScript : MonoBehaviour
                 if (_inputNums.Distinct().Count() == 1)
                 {
                     _moduleSolved = true;
-                    Module.HandlePass();
                     Debug.LogFormat("[{0} #{1}] All three numbers are equal the end of the timer. Module solved.", ModuleName, _moduleId);
+                    Audio.PlaySoundAtTransform("Solve", transform);
+                    yield return new WaitForSeconds(2.5f);
+                    Module.HandlePass();
+                    ScreenTexts[0].text = "YOU";
+                    ScreenTexts[1].text = "DID";
+                    ScreenTexts[2].text = "IT!";
+                    IdText.text = "--";
+                    TimerText.text = "--";
                     yield break;
                 }
                 else
