@@ -86,10 +86,10 @@ public class GeminiScript : MonoBehaviour
         _gonnaStrike = false;
         _inputString = "---------";
 
-        _timer = Rnd.Range(30, 71);
+        _timer = Rnd.Range(20, 60);
         if (_partner != null && _partner._timer != 0)
-            while (Math.Abs(_timer - _partner._timer) < 20)
-                _timer = Rnd.Range(20, 81);
+            while (Math.Abs(_timer - _partner._timer) < 15)
+                _timer = Rnd.Range(10, 70);
         TimerText.text = _timer.ToString();
 
         do
