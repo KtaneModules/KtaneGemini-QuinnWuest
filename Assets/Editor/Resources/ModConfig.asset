@@ -19,9 +19,7 @@ MonoBehaviour:
     ...without the other!
 
 
-    Made by Quinn Wuest
-
-    Thanks to Timwi for helping me not lose my mind'
+    Made by Quinn Wuest and Timwi'
   version: 1.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 539076fce510e4a40af617f70e4b7a3d, type: 3}

@@ -47,6 +47,8 @@ public class GeminiScript : MonoBehaviour
     private Coroutine _goTimer;
     private bool _autosolved;
     private bool _partnerAutosolved;
+    private string _idText;
+    private int _modIx;
 
     private void Start()
     {
@@ -110,9 +112,9 @@ public class GeminiScript : MonoBehaviour
         yield return null;
 
         // Discover my own partner
-        var ix = (ModuleName == "Castor" ? _info.CastorModules : _info.PolluxModules).IndexOf(this);
+        _modIx = (ModuleName == "Castor" ? _info.CastorModules : _info.PolluxModules).IndexOf(this);
         var pList = ModuleName == "Pollux" ? _info.CastorModules : _info.PolluxModules;
-        _partner = pList.Count > ix ? pList[ix] : null;
+        _partner = pList.Count > _modIx ? pList[_modIx] : null;
 
         if (_partner != null)
             Debug.LogFormat("[{0} #{1}] This module has a partner!", ModuleName, _moduleId);
@@ -120,9 +122,9 @@ public class GeminiScript : MonoBehaviour
             Debug.LogFormat("[{0} #{1}] This module does not have a partner.", ModuleName, _moduleId);
 
         // Display ID
-        var idTxt = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[ix / 26].ToString() + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[ix % 26].ToString();
-        IdText.text = idTxt;
-        Debug.LogFormat("[{0} #{1}] This module's ID is {2}", ModuleName, _moduleId, idTxt);
+        _idText = _partner != null ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[_modIx / 26].ToString() + "ABCDEFGHIJKLMNOPQRSTUVWXYZ"[_modIx % 26].ToString() : "--";
+        IdText.text = _idText;
+        Debug.LogFormat("[{0} #{1}] This module{2}.", ModuleName, _moduleId, _idText == "--" ? " does not have an ID" : ("’s ID is " + _idText));
 
         ResetModule();
         StartCoroutine(CycleText());
@@ -200,11 +202,12 @@ public class GeminiScript : MonoBehaviour
             while (time == (int)BombInfo.GetTime())
                 yield return null;
 
-            if (!_autosolved && !_partnerAutosolved && _partner._autosolved)
+            if (!_autosolved && !_partnerAutosolved && _partner != null && _partner._autosolved)
             {
                 _partner = null;
                 _partnerAutosolved = true;
-                Debug.LogFormat("[{0} #{1}] This module's partner has been autosolved. Departnering...", ModuleName, _moduleId);
+                Debug.LogFormat("[{0} #{1}] This module’s partner has been autosolved. Unlinking...", ModuleName, _moduleId);
+                IdText.text = "--";
             }
 
             if (!_inputStarted)
@@ -265,6 +268,7 @@ public class GeminiScript : MonoBehaviour
                 Module.HandleStrike();
                 Debug.LogFormat("[{0} #{1}] This module’s partner solved prematurely. Strike.", ModuleName, _moduleId);
                 _partner = null;
+                IdText.text = "--";
             }
             else if (_partner != null && _partner._gonnaStrike && _timerStarted)
                 Debug.LogFormat("[{0} #{1}] This module’s partner’s timer has run out and struck. Reset.", ModuleName, _moduleId);
@@ -356,9 +360,10 @@ public class GeminiScript : MonoBehaviour
 
     private IEnumerator TwitchHandleForcedSolve()
     {
-        Debug.LogFormat("[{0} #{1}] Autosolving module. Departnering...", ModuleName, _moduleId);
+        Debug.LogFormat("[{0} #{1}] Autosolving module. Unlinking...", ModuleName, _moduleId);
         _autosolved = true;
         _partner = null;
+        IdText.text = "--";
         var inp = _functionOffsets.Select(i => (ModuleName == "Pollux" ? i * _timer % 1000 : (1000 - i) * _timer % 1000).ToString("000")).Join("");
         for (int i = 0; i < inp.Length; i++)
         {
