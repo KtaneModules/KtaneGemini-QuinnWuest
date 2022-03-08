@@ -49,6 +49,7 @@ public class GeminiScript : MonoBehaviour
     private bool _partnerAutosolved;
     private string _idText;
     private int _modIx;
+    private bool _trueModuleSolved;
 
     private void Start()
     {
@@ -228,10 +229,12 @@ public class GeminiScript : MonoBehaviour
                 if (_inputNums.Distinct().Count() == 1)
                 {
                     _moduleSolved = true;
+                    _partner = null;
                     Debug.LogFormat("[{0} #{1}] All three numbers are equal the end of the timer. Module solved.", ModuleName, _moduleId);
                     Audio.PlaySoundAtTransform("Solve", transform);
                     yield return new WaitForSeconds(2.5f);
                     Module.HandlePass();
+                    _trueModuleSolved = true;
                     ScreenTexts[0].text = "YOU";
                     ScreenTexts[1].text = "DID";
                     ScreenTexts[2].text = "IT!";
@@ -262,6 +265,8 @@ public class GeminiScript : MonoBehaviour
             {
                 Module.HandleStrike();
                 Debug.LogFormat("[{0} #{1}] The three numbers ({2}) are not equal at the end of the timer. Strike.", ModuleName, _moduleId, _inputNums.Join(", "));
+                if (_partner != null && _partner._moduleSolved)
+                    _partner = null;
             }
             else if (_partner != null && _partner._moduleSolved && !_partner._autosolved)
             {
@@ -373,7 +378,7 @@ public class GeminiScript : MonoBehaviour
         GoSel.OnInteract();
         yield return new WaitForSeconds(0.2f);
         GoSel.OnInteractEnded();
-        while (!_moduleSolved)
+        while (!_trueModuleSolved)
             yield return true;
     }
 }
