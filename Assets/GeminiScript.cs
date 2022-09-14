@@ -341,7 +341,10 @@ public class GeminiScript : MonoBehaviour
             yield return null;
             int t = int.Parse(m.Groups[1].Value);
             while ((int)BombInfo.GetTime() % 60 != t)
+            {
                 yield return null;
+                yield return "trycancel";
+            }
             GoSel.OnInteract();
             yield return new WaitForSeconds(0.2f);
             GoSel.OnInteractEnded();

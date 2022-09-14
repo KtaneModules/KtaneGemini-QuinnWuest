@@ -14,12 +14,8 @@ MonoBehaviour:
   id: Gemini
   title: Gemini
   author: Quinn Wuest
-  description: 'Never one...
-
-    ...without the other!
-
-
-    Made by Quinn Wuest and Timwi'
+  description: "Never one...\n...without the other!\n\nMade by Quinn Wuest & Timwi\n\n[url=https://ktane.timwi.de/HTML/Castor.html]Manual
+    HTML[/url].\r\n[url=https://ktane.timwi.de/PDF/Pollux.pdf]Manual PDF[/url].\n"
   version: 1.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 539076fce510e4a40af617f70e4b7a3d, type: 3}
