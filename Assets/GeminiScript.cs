@@ -352,13 +352,15 @@ public class GeminiScript : MonoBehaviour
             yield return "solve";
             yield break;
         }
-        m = Regex.Match(command, @"^\s*press\s+(\d{9})\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        m = Regex.Match(command, @"^\s*press\s+([0123456789,; ]+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
             yield return null;
             string p = m.Groups[1].Value;
             for (int i = 0; i < p.Length; i++)
             {
+                if (p[i] == ' ' || p[i] == ',' || p[i] == ';')
+                    continue;
                 ButtonSels[p[i] - '0'].OnInteract();
                 yield return new WaitForSeconds(0.1f);
             }
