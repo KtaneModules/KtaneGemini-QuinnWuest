@@ -20,18 +20,19 @@ public class GeminiScript : MonoBehaviour
     public string ModuleName;
 
     private int _moduleId;
-    private static int _moduleIdCounter = 1;
+    private static int _castorModuleIdCounter = 1;
+    private static int _polluxModuleIdCounter = 1;
     private bool _moduleSolved;
 
-    private int[] _startingNums = new int[3];
-    private int[] _currentNums = new int[3];
-    private int[] _functionOffsets = new int[3];
+    private readonly int[] _startingNums = new int[3];
+    private readonly int[] _currentNums = new int[3];
+    private readonly int[] _functionOffsets = new int[3];
 
     private bool _inputStarted;
     private string _inputString;
     private int _timer;
     private bool _timerStarted;
-    private int[] _inputNums = new int[3];
+    private readonly int[] _inputNums = new int[3];
     private bool _gonnaStrike;
     private bool _hasFocus;
     private float _goTimeElapsed;
@@ -53,7 +54,6 @@ public class GeminiScript : MonoBehaviour
 
     private void Start()
     {
-        _moduleId = _moduleIdCounter++;
         for (int i = 0; i < ButtonSels.Length; i++)
             ButtonSels[i].OnInteract += ButtonPress(i);
         GoSel.OnInteract += GoPress;
@@ -67,10 +67,15 @@ public class GeminiScript : MonoBehaviour
             _infos[sn] = new GeminiInfo();
         _info = _infos[sn];
         if (ModuleName == "Castor")
+        {
             _info.CastorModules.Add(this);
+            _moduleId = _castorModuleIdCounter++;
+        }
         if (ModuleName == "Pollux")
+        {
             _info.PolluxModules.Add(this);
-
+            _moduleId = _polluxModuleIdCounter++;
+        }
         for (int i = 0; i < _startingNums.Length; i++)
         {
             _startingNums[i] = Rnd.Range(0, 1000);
@@ -271,7 +276,7 @@ public class GeminiScript : MonoBehaviour
             else if (_partner != null && _partner._moduleSolved && !_partner._autosolved)
             {
                 Module.HandleStrike();
-                Debug.LogFormat("[{0} #{1}] This module’s partner solved prematurely. Strike.", ModuleName, _moduleId);
+                Debug.LogFormat("[{0} #{1}] This module’s partner solved early. Strike.", ModuleName, _moduleId);
                 _partner = null;
                 IdText.text = "--";
             }
@@ -328,17 +333,19 @@ public class GeminiScript : MonoBehaviour
         if (m.Success)
         {
             yield return null;
-            GoSel.OnInteract();
-            yield return new WaitForSeconds(0.2f);
-            GoSel.OnInteractEnded();
             yield return "strike";
             yield return "solve";
+            GoSel.OnInteract();
+            yield return null;
+            GoSel.OnInteractEnded();
             yield break;
         }
         m = Regex.Match(command, @"^\s*press\s+go\s+at\s+(\d{2})\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
             yield return null;
+            yield return "strike";
+            yield return "solve";
             int t = int.Parse(m.Groups[1].Value);
             while ((int)BombInfo.GetTime() % 60 != t)
             {
@@ -346,10 +353,8 @@ public class GeminiScript : MonoBehaviour
                 yield return "trycancel";
             }
             GoSel.OnInteract();
-            yield return new WaitForSeconds(0.2f);
+            yield return null;
             GoSel.OnInteractEnded();
-            yield return "strike";
-            yield return "solve";
             yield break;
         }
         m = Regex.Match(command, @"^\s*press\s+([0123456789,; ]+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
