@@ -36,6 +36,10 @@ public class GeminiScript : MonoBehaviour
     private bool _gonnaStrike;
     private bool _hasFocus;
     private float _goTimeElapsed;
+    private bool _readyToSolve;
+    private bool TwitchPlaysActive;
+    private bool _tpActive;
+    private bool _solvedWithPair;
 
     private class GeminiInfo
     {
@@ -56,6 +60,7 @@ public class GeminiScript : MonoBehaviour
     {
         for (int i = 0; i < ButtonSels.Length; i++)
             ButtonSels[i].OnInteract += ButtonPress(i);
+        Module.OnActivate += delegate () { _tpActive = TwitchPlaysActive; };
         GoSel.OnInteract += GoPress;
         GoSel.OnInteractEnded += GoRelease;
 
@@ -234,11 +239,16 @@ public class GeminiScript : MonoBehaviour
                 if (_inputNums.Distinct().Count() == 1)
                 {
                     _moduleSolved = true;
+                    yield return null;
+                    if (_partner != null && _partner._moduleSolved)
+                        _solvedWithPair = true;
                     _partner = null;
                     Debug.LogFormat("[{0} #{1}] All three numbers are equal the end of the timer. Module solved.", ModuleName, _moduleId);
                     Audio.PlaySoundAtTransform("Solve", transform);
                     yield return new WaitForSeconds(2.5f);
-                    Module.HandlePass();
+                    if (!_tpActive)
+                        Module.HandlePass();
+                    _readyToSolve = true;
                     _trueModuleSolved = true;
                     ScreenTexts[0].text = "YOU";
                     ScreenTexts[1].text = "DID";
@@ -291,6 +301,11 @@ public class GeminiScript : MonoBehaviour
         }
     }
 
+    private void Solve()
+    {
+        Module.HandlePass();
+    }
+
     private int FunctionEncode(int num, int ix)
     {
         int val = num;
@@ -315,14 +330,33 @@ public class GeminiScript : MonoBehaviour
     }
 
 #pragma warning disable 414
-    private readonly string TwitchHelpMessage = "!{0} press 123456789 [Presses buttons 123456789. Must be of length 9.]\n!{0} press go at xx [Press the go button when the seconds digits of the timer are xx.]\n!{0} press go [Press the go button at any time.]\n!{0} reset [Hold the go button to reset the module.";
+    private readonly string TwitchHelpMessage = "!{0} press 123456789 [Presses buttons 123456789. Must be of length 9.]\n!{0} press go at xx [Press the go button when the seconds digits of the timer are xx.]\n!{0} press go [Press the go button at any time.]\n!{0} reset [Hold the go button to reset the module.\n!{0} done [Solve the module upon inputting the correct solution.]";
 #pragma warning restore 414
 
     private IEnumerator ProcessTwitchCommand(string command)
     {
-        var m = Regex.Match(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        Match m;
+        m = Regex.Match(command, @"^\s*done\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
+            if (!_readyToSolve)
+            {
+                yield return "sendtochaterror The module is not ready to solve yet!";
+                yield break;
+            }
+            yield return null;
+            if (_solvedWithPair)
+                yield return "awardpointsonsolve 3";
+            Solve();
+        }
+        m = Regex.Match(command, @"^\s*reset\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            if (_readyToSolve)
+            {
+                yield return "sendtochaterror The module is ready to solve. Use 'done' to solve the module.";
+                yield break;
+            }
             yield return null;
             GoSel.OnInteract();
             yield return new WaitForSeconds(1.5f);
@@ -332,6 +366,11 @@ public class GeminiScript : MonoBehaviour
         m = Regex.Match(command, @"^\s*press\s+go\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
+            if (_readyToSolve)
+            {
+                yield return "sendtochaterror The module is ready to solve. Use 'done' to solve the module.";
+                yield break;
+            }
             yield return null;
             yield return "strike";
             yield return "solve";
@@ -343,6 +382,11 @@ public class GeminiScript : MonoBehaviour
         m = Regex.Match(command, @"^\s*press\s+go\s+at\s+(\d{2})\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
+            if (_readyToSolve)
+            {
+                yield return "sendtochaterror The module is ready to solve. Use 'done' to solve the module.";
+                yield break;
+            }
             yield return null;
             yield return "strike";
             yield return "solve";
@@ -360,6 +404,11 @@ public class GeminiScript : MonoBehaviour
         m = Regex.Match(command, @"^\s*press\s+([0123456789,; ]+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
+            if (_readyToSolve)
+            {
+                yield return "sendtochaterror The module is ready to solve. Use 'done' to solve the module.";
+                yield break;
+            }
             yield return null;
             string p = m.Groups[1].Value;
             for (int i = 0; i < p.Length; i++)
